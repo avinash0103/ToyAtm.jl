@@ -1,0 +1,13 @@
+name = "ToyAtm"
+uuid = "11f72bee-8d24-46fd-bb5d-17a888ff0c24"
+authors = ["Avinash Verma <avinash.verma@niser.ac.in> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
