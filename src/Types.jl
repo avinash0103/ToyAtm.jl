@@ -3,27 +3,44 @@ struct CPU <: AbstractDevice end
 struct GPU <: AbstractDevice end
 
 abstract type AbstractAtmosphere end
-abstract type AbstractOpacity end
-abstract type AbstractForwardModel end
-abstract type AbstractObservation end
-abstract type AbstractLikelihood end
-abstract type AbstractParameterTransform end
-abstract type AbstractRetrievalMethod end
+
+abstract type AbstractPlanetType end
+
+struct HotJupiter <: AbstractPlanetType end
+struct Terrestrial <: AbstractPlanetType end
+struct EarthLike <: AbstractPlanetType end
+struct SubNeptune <: AbstractPlanetType end
+
 
 """Fixed atmospheric configuration and planetary geometry."""
-struct AtmState{T<:AbstractFloat} <: AbstractAtmosphere
+struct AtmState{T<:AbstractFloat,A<:AbstractVector{T}} <: AbstractAtmosphere
     n_layers::Int
     p_bottom::T
     p_top::T
-    gravity::T
-    planet_radius::T
     star_radius::T
+    P::A
+    Pc::A
+end
+
+function AtmState(
+    n_layers::Int,
+    p_bottom::T,
+    p_top::T,
+    star_radius::T
+) where {T<:AbstractFloat}
+    P = T(10) .^ range(log10(p_bottom), log10(p_top), length = n_layers + 1)
+    Pc = @. sqrt(P[1:end-1] * P[2:end])
+    return AtmState(n_layers, p_bottom, p_top, star_radius, P,Pc)
 end
 
 """Small set of live physical parameters used by the forward model."""
 mutable struct AtmParameters{T}
     mean_mass::T
     temp_eq::T
+    planet_radius::T
+    gravity::T
+    scale_height::T
+    thickness::T
 end
 
 """
@@ -35,68 +52,20 @@ D = device type.
 The stored parameters use T. During AD, a temporary AtmParameters{S}
 can be passed to the forward model, where S may be a Dual type.
 """
-struct FullAtm{T,A<:AbstractVector{T},D<:AbstractDevice} <: AbstractAtmosphere
-    state::AtmState{T}
-    parameters::AtmParameters{T}
-    pressure::A
-    logqfactor::A
-    logqcenter::A
-    pressure_center::A
-    dlogq::T
-    device::D
+struct FullAtm{T,B,A<:AbstractVector{T}} <: AbstractAtmosphere
+    state::AtmState{T,A}
+    parameters::AtmParameters{B}
+    number_density::A
 end
 
-struct ToyOpacity{T,A<:AbstractVector{T}} <: AbstractOpacity
+
+
+struct PlanetSpectrum{T,A<:AbstractVector{T},P<:AbstractPlanetType}
+    planet_type::P
     wavelength::A
-    sigma_1::A
-    sigma_2::A
-    sigma_rayleigh::A
-end
-
-struct TransitModel{A<:FullAtm,O<:AbstractOpacity} <: AbstractForwardModel
-    atmosphere::A
-    opacity::O
-end
-
-struct TransitObservation{T,A<:AbstractVector{T}} <: AbstractObservation
-    wavelength::A
+    n_scale_heights::A
     depth::A
-    uncertainty::A
 end
 
-struct GaussianLikelihood <: AbstractLikelihood end
 
-"""Identity: retrieval vector is [H, X1, X2]."""
-struct PhysicalTransform <: AbstractParameterTransform end
 
-"""
-AD-friendly transform:
-H = H_ref * exp(u1)
-X1 = abundance_max * logistic(u2)
-X2 = abundance_max * logistic(u3)
-"""
-struct LogitTransform{T} <: AbstractParameterTransform
-    h_ref::T
-    abundance_max::T
-end
-
-struct GradientAscent{B,R<:AbstractParameterTransform} <: AbstractRetrievalMethod
-    backend::B
-    transform::R
-    step_size::Float64
-    maxiters::Int
-    gtol::Float64
-end
-
-"""Adapter around a user-supplied MultiNest runner."""
-struct MultiNestRetrieval{F,R<:AbstractParameterTransform} <: AbstractRetrievalMethod
-    runner::F
-    transform::R
-end
-
-struct RetrievalResult{A,T}
-    parameters::A
-    loglikelihood::T
-    iterations::Int
-    converged::Bool
-end

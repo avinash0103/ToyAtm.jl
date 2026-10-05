@@ -1,0 +1,7 @@
+# a simple Artifacts.toml file
+[toy_data]
+git-tree-sha1 = "8cd767e8f63ada634c95d1930bba6472c7d78536"
+
+    [[toy_data.download]]
+    url = "https://github.com/avinash0103/ToyAtm.jl/releases/download/v0.1.0/toy_syn_data.tar.gz"
+    sha256 = "c46fb5df3efcc461e13df83a98e46934f2f3c1448e52828843b29c9ec78ca7f9"
